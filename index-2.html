@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Financial Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0e0f11;
+    --bg2: #15171a;
+    --bg3: #1c1f24;
+    --bg4: #242830;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0ede8;
+    --text2: #9a9691;
+    --text3: #5a5753;
+    --green: #3ecf8e;
+    --green-dim: rgba(62,207,142,0.12);
+    --red: #f26b5b;
+    --red-dim: rgba(242,107,91,0.12);
+    --blue: #5b9cf6;
+    --blue-dim: rgba(91,156,246,0.12);
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.12);
+    --purple: #a78bfa;
+    --purple-dim: rgba(167,139,250,0.12);
+    --teal: #2dd4bf;
+    --font-display: 'DM Serif Display', serif;
+    --font-body: 'Outfit', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --r: 10px;
+    --r-lg: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(14,15,17,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0;
+    padding: 0 24px;
+    height: 52px;
+  }
+  .nav-brand {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--text);
+    margin-right: 32px;
+    white-space: nowrap;
+  }
+  .nav-brand span { color: var(--green); }
+  .nav-tabs { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
+  .nav-tab {
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    font-family: var(--font-body);
+    white-space: nowrap;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-tab:hover { color: var(--text2); background: var(--bg3); }
+  .nav-tab.active { color: var(--text); background: var(--bg3); }
+  .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 6px; display: inline-block; }
+  .date-pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    white-space: nowrap;
+  }
+
+  /* ── LAYOUT ── */
+  .page { display: none; padding: 28px 24px 60px; max-width: 1200px; margin: 0 auto; }
+  .page.active { display: block; }
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 { font-family: var(--font-display); font-size: 30px; color: var(--text); font-weight: 400; }
+  .page-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  /* ── GRID HELPERS ── */
+  .g2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+  .g3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+  .g4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+  .g5 { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; }
+  .span2 { grid-column: span 2; }
+  .span3 { grid-column: span 3; }
+  .mb { margin-bottom: 14px; }
+  .mb2 { margin-bottom: 24px; }
+  .sec-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--text3); text-transform: uppercase; margin-bottom: 10px; margin-top: 24px;
+  }
+  .sec-label:first-child { margin-top: 0; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 18px 20px;
+  }
+  .card-sm { padding: 14px 16px; }
+  .card-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text3); margin-bottom: 12px;
+  }
+
+  /* ── METRIC CARDS ── */
+  .metric {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 16px 18px;
+  }
+  .metric .m-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+  .metric .m-value { font-family: var(--font-mono); font-size: 24px; font-weight: 500; color: var(--text); }
+  .metric .m-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .metric.green-accent { border-color: rgba(62,207,142,0.25); }
+  .metric.red-accent { border-color: rgba(242,107,91,0.25); }
+  .metric.blue-accent { border-color: rgba(91,156,246,0.25); }
+  .metric .m-value.green { color: var(--green); }
+  .metric .m-value.red { color: var(--red); }
+  .metric .m-value.blue { color: var(--blue); }
+  .metric .m-value.amber { color: var(--amber); }
+  .metric .m-value.purple { color: var(--purple); }
+
+  /* ── INPUT FIELDS ── */
+  .field {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 10px 14px;
+    transition: border-color 0.15s;
+  }
+  .field:focus-within { border-color: var(--border2); }
+  .field label { display: block; font-size: 10px; color: var(--text3); margin-bottom: 4px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+  .field-row { display: flex; align-items: center; gap: 4px; }
+  .field-row input, .field-row select {
+    background: transparent; border: none; outline: none;
+    font-size: 15px; font-weight: 500; color: var(--text);
+    font-family: var(--font-mono); width: 100%;
+  }
+  .field-row select { cursor: pointer; }
+  .field-pre { font-size: 13px; color: var(--text3); flex-shrink: 0; font-family: var(--font-mono); }
+  .field-row input::placeholder { color: var(--text3); }
+  .field-row input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  /* ── BARS ── */
+  .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .bar-name { font-size: 12px; color: var(--text2); width: 130px; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+  .bar-val { font-family: var(--font-mono); font-size: 12px; color: var(--text); width: 110px; text-align: right; flex-shrink: 0; }
+
+  /* ── CASH FLOW TABLE ── */
+  .cf-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .cf-row:last-child { border-bottom: none; font-weight: 600; font-size: 14px; }
+  .cf-row.sub { padding-left: 14px; font-size: 12px; color: var(--text2); }
+  .cf-row.section-head { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 0 4px; border-bottom: none; }
+  .cf-label { color: var(--text2); }
+  .cf-row:last-child .cf-label { color: var(--text); }
+  .v-green { color: var(--green); font-family: var(--font-mono); }
+  .v-red { color: var(--red); font-family: var(--font-mono); }
+  .v-blue { color: var(--blue); font-family: var(--font-mono); }
+  .v-amber { color: var(--amber); font-family: var(--font-mono); }
+  .v-mono { font-family: var(--font-mono); }
+
+  /* ── PROJECTION TABLE ── */
+  .proj-table { width: 100%; border-collapse: collapse; }
+  .proj-table th {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text3); padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border);
+  }
+  .proj-table th:first-child { text-align: left; }
+  .proj-table td { padding: 9px 12px; font-size: 12px; font-family: var(--font-mono); color: var(--text2); text-align: right; border-bottom: 1px solid var(--border); }
+  .proj-table td:first-child { text-align: left; color: var(--text3); font-family: var(--font-body); font-size: 13px; }
+  .proj-table tr:last-child td { border-bottom: none; }
+  .proj-table tr.milestone td { color: var(--text); background: var(--bg3); }
+  .proj-table tr.milestone td:first-child { color: var(--text); }
+  .proj-table tr:hover td { background: var(--bg3); }
+
+  /* ── HOLDINGS TABLE ── */
+  .h-table { width: 100%; border-collapse: collapse; }
+  .h-table th { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text3); padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--border); }
+  .h-table th:first-child { text-align: left; }
+  .h-table td { padding: 10px 10px; font-size: 13px; text-align: right; border-bottom: 1px solid var(--border); }
+  .h-table td:first-child { text-align: left; }
+  .h-table tr:last-child td { border-bottom: none; }
+  .h-table input { background: transparent; border: none; outline: none; font-size: 13px; font-weight: 500; color: var(--text); font-family: var(--font-mono); text-align: right; width: 80px; }
+  .h-table input:focus { color: var(--blue); }
+  .ticker-badge { font-family: var(--font-mono); font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; background: var(--bg4); color: var(--text2); margin-right: 6px; }
+  .siri-badge { background: var(--amber-dim); color: var(--amber); }
+
+  /* ── SCENARIO PILLS ── */
+  .scenario-row { display: flex; gap: 6px; margin-bottom: 18px; }
+  .s-pill {
+    padding: 5px 16px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); border-radius: 20px;
+    cursor: pointer; background: transparent; font-family: var(--font-body);
+    color: var(--text3); transition: all 0.15s;
+  }
+  .s-pill.bear.active { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+  .s-pill.base.active { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+  .s-pill.bull.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+  /* ── TABS ── */
+  .tab-row { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .tab-btn {
+    padding: 8px 16px; font-size: 13px; font-weight: 500;
+    color: var(--text3); cursor: pointer; border: none; background: transparent;
+    font-family: var(--font-body); border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.15s;
+  }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--green); }
+  .tab-btn:hover { color: var(--text2); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── PROGRESS RING ── */
+  .ring-wrap { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-center .rv { font-family: var(--font-mono); font-size: 16px; font-weight: 500; color: var(--text); }
+  .ring-center .rl { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ── GOAL CARDS ── */
+  .goal-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; }
+  .goal-card .g-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .goal-card .g-sub { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
+  .goal-progress { height: 3px; background: var(--bg4); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .goal-progress-fill { height: 100%; border-radius: 2px; }
+
+  /* ── CHART CONTAINERS ── */
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* ── LEGEND ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text3); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── BUDGET DONUT ── */
+  .donut-row { display: flex; gap: 24px; align-items: center; }
+  .donut-list { flex: 1; }
+  .donut-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .donut-item:last-child { border-bottom: none; }
+  .donut-name { display: flex; align-items: center; gap: 8px; color: var(--text2); }
+  .donut-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .donut-val { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
+
+  /* ── WARN ── */
+  .warn-tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: var(--amber-dim); color: var(--amber); margin-left: 6px; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .page.active .card, .page.active .metric { animation: fadeUp 0.3s ease both; }
+
+  /* ── DIVIDER ── */
+  .div { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* ── ACCOUNT BADGES ── */
+  .acct-badge {
+    display: inline-flex; align-items: center;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+    padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+    font-family: var(--font-body);
+  }
+  .acct-brokerage { background: rgba(91,156,246,0.15); color: #5b9cf6; }
+  .acct-roth      { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .acct-k401      { background: rgba(62,207,142,0.15);  color: #3ecf8e; }
+  .acct-watch     { background: rgba(90,87,83,0.25);    color: #9a9691; }
+
+  /* ── ADD STOCK ROW ── */
+  .add-stock-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 100px 100px 100px 110px auto;
+    gap: 8px; align-items: end;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .add-stock-row input, .add-stock-row select {
+    background: var(--bg4); border: 1px solid var(--border2);
+    border-radius: 7px; padding: 8px 10px;
+    color: var(--text); font-family: var(--font-mono); font-size: 13px;
+    width: 100%; outline: none;
+    transition: border-color 0.15s;
+  }
+  .add-stock-row input:focus, .add-stock-row select:focus { border-color: var(--blue); }
+  .add-stock-row input::placeholder { color: var(--text3); }
+  .add-stock-row .field-sub-label {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--text3); text-transform: uppercase; margin-bottom: 4px;
+  }
+  .btn-add-stock {
+    background: var(--green-dim); border: 1px solid rgba(62,207,142,0.3);
+    border-radius: 7px; padding: 8px 14px;
+    color: var(--green); font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: var(--font-body);
+    transition: background 0.15s; white-space: nowrap;
+    align-self: end;
+  }
+  .btn-add-stock:hover { background: rgba(62,207,142,0.22); }
+  .btn-remove {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 6px; width: 28px; height: 28px;
+    color: var(--text3); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; flex-shrink: 0;
+    align-self: center;
+  }
+  .btn-remove:hover { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+  .acct-select {
+    background: var(--bg4); border: 1px solid var(--border);
+    border-radius: 7px; padding: 7px 8px;
+    color: var(--text); font-family: var(--font-body); font-size: 12px;
+    outline: none; cursor: pointer; width: 100%;
+  }
+  /* holding row in settings */
+  .h-setting-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 100px 100px 100px 110px 32px;
+    gap: 8px; align-items: end;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .h-setting-row:last-of-type { border-bottom: none; }
+  .h-setting-row input, .h-setting-row select {
+    background: var(--bg4); border: 1px solid var(--border);
+    border-radius: 7px; padding: 7px 10px;
+    color: var(--text); font-family: var(--font-mono); font-size: 13px;
+    width: 100%; outline: none;
+  }
+  .h-setting-row input:focus { border-color: rgba(91,156,246,0.5); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">fin<span>.</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('overview')"><span class="nav-dot"></span>Overview</button>
+    <button class="nav-tab" onclick="showPage('budget')">Budget</button>
+    <button class="nav-tab" onclick="showPage('taxes')">Taxes</button>
+    <button class="nav-tab" onclick="showPage('portfolio')">Portfolio</button>
+    <button class="nav-tab" onclick="showPage('projection')">Projection</button>
+    <button class="nav-tab" onclick="showPage('goals')">Goals</button>
+    <button class="nav-tab" onclick="showPage('settings')">Settings</button>
+  </div>
+  <div class="date-pill" id="dateDisplay"></div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE: OVERVIEW
+═══════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+  <div class="page-header">
+    <h1>Financial overview</h1>
+    <p>Enter your details in the Budget and Settings pages to get started.</p>
+  </div>
+
+  <!-- Top KPIs -->
+  <div class="g5 mb2" id="overview-kpis"></div>
+
+  <div class="g2 mb2">
+    <!-- Monthly cash flow -->
+    <div class="card">
+      <div class="card-title">Monthly cash flow</div>
+      <div id="overview-cf"></div>
+    </div>
+    <!-- Budget breakdown -->
+    <div class="card">
+      <div class="card-title">Where your take-home goes</div>
+      <div class="donut-row">
+        <div style="position:relative;width:140px;height:140px;flex-shrink:0;">
+          <canvas id="donutChart"></canvas>
+        </div>
+        <div class="donut-list" id="donut-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2 mb2">
+    <!-- Net worth trajectory -->
+    <div class="card span2">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Net worth projection — base case</span>
+        <span id="ov-nw-end" style="font-family:var(--font-mono);font-size:13px;color:var(--green)"></span>
+      </div>
+      <div class="chart-wrap" style="height:200px"><canvas id="ovNwChart"></canvas></div>
+      <div class="legend" id="ov-legend"></div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <!-- Tax summary -->
+    <div class="card">
+      <div class="card-title">2026 tax burden</div>
+      <div id="ov-tax"></div>
+    </div>
+    <!-- Savings rate -->
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+      <div class="card-title" style="text-align:center">Savings rate</div>
+      <div class="ring-wrap" id="savingsRing">
+        <svg width="88" height="88" viewBox="0 0 88 88">
+          <circle cx="44" cy="44" r="36" fill="none" stroke="#1c1f24" stroke-width="8"/>
+          <circle id="ringFill" cx="44" cy="44" r="36" fill="none" stroke="#3ecf8e" stroke-width="8"
+            stroke-dasharray="226" stroke-dashoffset="226" stroke-linecap="round"/>
+        </svg>
+        <div class="ring-center">
+          <div class="rv" id="ringPct">0%</div>
+          <div class="rl">saved</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text3)" id="savings-detail"></div>
+    </div>
+    <!-- Stock portfolio summary -->
+    <div class="card">
+      <div class="card-title">Stock portfolio</div>
+      <div id="ov-stocks"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE: BUDGET
+═══════════════════════════════════════════════ -->
+<div class="page" id="page-budget">
+  <div class="page-header">
+    <h1>Budget</h1>
+    <p>Adjust any figure — everything recalculates live</p>
+  </div>
+
+  <div class="g2">
+    <div>
+      <div class="sec-label">Income</div>
+      <div class="g3 mb">
+        <div class="field"><label>Gross salary</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-salary" value="0" step="1000" oninput="recalc()" /></div></div>
+        <div class="field"><label>Annual bonus</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-bonus" value="0" step="500" oninput="recalc()" /></div></div>
+        <div class="field"><label>Other income</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-other" value="0" step="500" oninput="recalc()" /></div></div>
+      </div>
+
+      <div class="sec-label">Housing <span style="color:var(--text3);font-size:10px;text-transform:none;letter-spacing:0;font-weight:400">monthly</span></div>
+      <div class="g3 mb">
+        <div class="field"><label>Rent</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-rent" value="0" step="50" oninput="recalc()" /></div></div>
+        <div class="field"><label>Utilities</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-utilities" value="0" step="10" oninput="recalc()" /></div></div>
+        <div class="field"><label>Renters ins.</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-insurance" value="0" step="5" oninput="recalc()" /></div></div>
+      </div>
+
+      <div class="sec-label">Living expenses <span style="color:var(--text3);font-size:10px;text-transform:none;letter-spacing:0;font-weight:400">monthly</span></div>
+      <div class="g2 mb" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        <div class="field"><label>Groceries</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-groceries" value="0" step="25" oninput="recalc()" /></div></div>
+        <div class="field"><label>Dining out</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-dining" value="0" step="25" oninput="recalc()" /></div></div>
+        <div class="field"><label>Transport</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-transport" value="0" step="25" oninput="recalc()" /></div></div>
+        <div class="field"><label>Health / fitness</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-health" value="0" step="10" oninput="recalc()" /></div></div>
+        <div class="field"><label>Entertainment / golf</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-entertainment" value="0" step="25" oninput="recalc()" /></div></div>
+        <div class="field"><label>Subscriptions</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-subscriptions" value="0" step="10" oninput="recalc()" /></div></div>
+        <div class="field"><label>Travel (avg/mo)</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-travel" value="0" step="25" oninput="recalc()" /></div></div>
+        <div class="field"><label>Misc</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-misc" value="0" step="25" oninput="recalc()" /></div></div>
+      </div>
+
+      <div class="sec-label">Investments &amp; savings <span style="color:var(--text3);font-size:10px;text-transform:none;letter-spacing:0;font-weight:400">monthly</span></div>
+      <div class="g2 mb" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        <div class="field"><label>401(k) pre-tax <span id="k401-warn" class="warn-tag" style="display:none">limit!</span></label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-k401" value="0" step="100" oninput="recalc()" /></div></div>
+        <div class="field"><label>Roth IRA <span id="roth-warn" class="warn-tag" style="display:none">limit!</span></label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-roth" value="0" step="100" oninput="recalc()" /></div></div>
+        <div class="field"><label>Brokerage</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-brokerage" value="0" step="100" oninput="recalc()" /></div></div>
+        <div class="field"><label>Emergency / HYSA</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-emergency" value="0" step="50" oninput="recalc()" /></div></div>
+      </div>
+
+      <div class="sec-label">Debt payments <span style="color:var(--text3);font-size:10px;text-transform:none;letter-spacing:0;font-weight:400">monthly</span></div>
+      <div class="g3 mb">
+        <div class="field"><label>Student loans</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-loans" value="0" step="25" oninput="recalc()" /></div></div>
+        <div class="field"><label>Credit cards</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-cc" value="0" step="25" oninput="recalc()" /></div></div>
+        <div class="field"><label>Other debt</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="b-otherdebt" value="0" step="25" oninput="recalc()" /></div></div>
+      </div>
+    </div>
+
+    <!-- Right: Live results -->
+    <div>
+      <div class="sec-label">Live summary</div>
+      <div class="g2 mb">
+        <div class="metric green-accent"><div class="m-label">Take-home / mo</div><div class="m-value green" id="r-takehome">—</div></div>
+        <div class="metric"><div class="m-label">Total expenses / mo</div><div class="m-value red" id="r-expenses">—</div></div>
+        <div class="metric blue-accent"><div class="m-label">Invested / mo</div><div class="m-value blue" id="r-invested">—</div></div>
+        <div class="metric"><div class="m-label">Surplus / deficit</div><div class="m-value" id="r-surplus">—</div></div>
+      </div>
+
+      <div class="card mb">
+        <div class="card-title">Monthly breakdown</div>
+        <div id="budget-cf"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">% of take-home</div>
+        <div id="budget-bars"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE: TAXES
+═══════════════════════════════════════════════ -->
+<div class="page" id="page-taxes">
+  <div class="page-header">
+    <h1>Tax Estimator</h1>
+    <p>NYC 3-layer tax model — federal + NY State + NYC local · 2026 brackets</p>
+  </div>
+  <div class="g2">
+    <div>
+      <div class="sec-label">Tax settings</div>
+      <div class="g3 mb">
+        <div class="field"><label>Filing status</label><div class="field-row"><select id="t-filing" onchange="recalc()"><option value="single" selected>Single</option><option value="mfj">Married joint</option></select></div></div>
+        <div class="field"><label>Location</label><div class="field-row"><input type="text" value="NYC 10003" readonly style="color:var(--text3);font-size:13px" /></div></div>
+        <div class="field"><label>Tax year</label><div class="field-row"><input type="text" value="2026" readonly style="color:var(--text3);font-size:13px" /></div></div>
+      </div>
+      <div class="sec-label">Key figures (from Budget page)</div>
+      <div class="g3 mb">
+        <div class="metric"><div class="m-label">Gross income</div><div class="m-value" id="t-gross">—</div></div>
+        <div class="metric"><div class="m-label">401(k) deduction</div><div class="m-value blue" id="t-k401ded">—</div></div>
+        <div class="metric"><div class="m-label">Federal taxable</div><div class="m-value" id="t-fedtaxable">—</div></div>
+      </div>
+      <div class="sec-label">Effective rates</div>
+      <div style="margin-bottom:16px" id="tax-rate-bars"></div>
+    </div>
+    <div>
+      <div class="sec-label">Annual tax breakdown</div>
+      <div class="card mb">
+        <div id="tax-breakdown"></div>
+      </div>
+      <div class="sec-label">Monthly withholding estimate</div>
+      <div class="g2 mb">
+        <div class="metric"><div class="m-label">Monthly taxes</div><div class="m-value red" id="t-monthly">—</div></div>
+        <div class="metric"><div class="m-label">Effective rate</div><div class="m-value amber" id="t-effrate">—</div></div>
+        <div class="metric"><div class="m-label">Monthly take-home</div><div class="m-value green" id="t-takehome2">—</div></div>
+        <div class="metric"><div class="m-label">Marginal rate (fed)</div><div class="m-value" id="t-marginal">22%</div></div>
+      </div>
+      <div class="card" style="font-size:12px;color:var(--text3);line-height:1.7">
+        Estimates use 2026 OBBBA federal brackets ($16,100 std. deduction), NY State reduced rates (middle-class tax cut), and NYC resident schedule 3.078%–3.876%. Your 401(k) reduces both federal and state taxable income. Actual taxes will vary based on deductions, credits, and other income sources.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE: PORTFOLIO
+═══════════════════════════════════════════════ -->
+<div class="page" id="page-portfolio">
+  <div class="page-header">
+    <h1>Portfolio</h1>
+    <p>Individual stock holdings — enter share counts to unlock full analysis</p>
+  </div>
+
+  <div class="g4 mb2" id="port-kpis"></div>
+
+  <div class="g2 mb2">
+    <div class="card">
+      <div class="card-title">Holdings</div>
+      <div style="overflow-x:auto">
+        <table class="h-table" id="holdingsTable">
+          <thead><tr>
+            <th style="text-align:left">Ticker</th>
+            <th style="text-align:left">Account</th>
+            <th>Shares</th>
+            <th>Price</th>
+            <th>Value</th>
+            <th>Cost basis</th>
+            <th>P&L</th>
+            <th>Exp. return</th>
+          </tr></thead>
+          <tbody id="holdingsBody"></tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px">Prices as of Mar 17, 2026 · Add or remove positions in Settings</div>
+    </div>
+
+    <div>
+      <div class="card mb2">
+        <div class="card-title">Allocation by value</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="portAllocChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Account breakdown</div>
+        <div id="port-accounts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE: PROJECTION
+═══════════════════════════════════════════════ -->
+<div class="page" id="page-projection">
+  <div class="page-header">
+    <h1>Net Worth Projection</h1>
+    <p>20-year compounding model — all financial plan inputs auto-synced</p>
+  </div>
+
+  <div class="g3 mb">
+    <div class="field"><label>401(k) return</label><div class="field-row"><input type="number" id="p-r401" value="7" step="0.5" oninput="recalc()" /><span class="field-pre">%</span></div></div>
+    <div class="field"><label>Roth IRA return</label><div class="field-row"><input type="number" id="p-rroth" value="7" step="0.5" oninput="recalc()" /><span class="field-pre">%</span></div></div>
+    <div class="field"><label>Brokerage return</label><div class="field-row"><input type="number" id="p-rbrok" value="7" step="0.5" oninput="recalc()" /><span class="field-pre">%</span></div></div>
+    <div class="field"><label>Cash / HYSA rate</label><div class="field-row"><input type="number" id="p-rcash" value="4.5" step="0.25" oninput="recalc()" /><span class="field-pre">%</span></div></div>
+    <div class="field"><label>Bond yield</label><div class="field-row"><input type="number" id="p-rbond" value="4.5" step="0.25" oninput="recalc()" /><span class="field-pre">%</span></div></div>
+    <div class="field"><label>Salary growth / yr</label><div class="field-row"><input type="number" id="p-salgrowth" value="3" step="0.5" oninput="recalc()" /><span class="field-pre">%</span></div></div>
+    <div class="field"><label>Expense inflation</label><div class="field-row"><input type="number" id="p-expinfl" value="3" step="0.5" oninput="recalc()" /><span class="field-pre">%</span></div></div>
+    <div class="field"><label>Horizon (years)</label><div class="field-row"><input type="number" id="p-years" value="20" step="1" min="1" max="40" oninput="recalc()" /></div></div>
+    <div class="field"><label>Retirement target</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="p-target" value="0" step="100000" oninput="recalc()" /></div></div>
+  </div>
+
+  <div class="scenario-row">
+    <button class="s-pill bear" onclick="setScenario('bear',this)">Bear −30%</button>
+    <button class="s-pill base active" onclick="setScenario('base',this)">Base</button>
+    <button class="s-pill bull" onclick="setScenario('bull',this)">Bull +30%</button>
+  </div>
+
+  <div class="g5 mb2" id="proj-kpis"></div>
+
+  <div class="card mb2">
+    <div class="card-title" style="display:flex;justify-content:space-between">
+      <span>Net worth over time</span>
+      <span id="proj-target-label" style="font-size:11px;color:var(--text3)"></span>
+    </div>
+    <div class="chart-wrap" style="height:280px"><canvas id="projNwChart"></canvas></div>
+    <div class="legend" id="proj-legend"></div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="switchProjTab('milestones',this)">Milestones</button>
+    <button class="tab-btn" onclick="switchProjTab('alloc',this)">Stacked allocation</button>
+    <button class="tab-btn" onclick="switchProjTab('income',this)">Income growth</button>
+  </div>
+
+  <div class="tab-content active" id="ptab-milestones">
+    <div class="card"><div style="overflow-x:auto"><table class="proj-table" id="projTable"></table></div></div>
+  </div>
+  <div class="tab-content" id="ptab-alloc">
+    <div class="card"><div class="chart-wrap" style="height:280px"><canvas id="projAllocChart"></canvas></div></div>
+  </div>
+  <div class="tab-content" id="ptab-income">
+    <div class="card"><div class="chart-wrap" style="height:280px"><canvas id="projIncomeChart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE: GOALS
+═══════════════════════════════════════════════ -->
+<div class="page" id="page-goals">
+  <div class="page-header">
+    <h1>Financial Goals</h1>
+    <p>Track your milestones — edit targets and timelines</p>
+  </div>
+
+  <div class="g3 mb2" id="goals-grid"></div>
+
+  <div class="sec-label">Milestone timeline</div>
+  <div class="card mb2">
+    <div class="chart-wrap" style="height:240px"><canvas id="goalsChart"></canvas></div>
+  </div>
+
+  <div class="sec-label">Retirement readiness</div>
+  <div class="g3" id="retire-metrics"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE: SETTINGS
+═══════════════════════════════════════════════ -->
+<div class="page" id="page-settings">
+  <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <h1>Settings</h1>
+      <p>Starting balances, portfolio positions, and account setup</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+      <span id="save-indicator" style="font-size:11px;color:var(--green);opacity:0;transition:opacity 0.4s">✓ Saved</span>
+      <button onclick="clearState()" style="background:transparent;border:1px solid var(--border);border-radius:7px;padding:6px 14px;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--font-body);transition:all 0.15s"
+        onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">Reset all data</button>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div>
+      <div class="sec-label">Current account balances</div>
+      <div class="g2 mb">
+        <div class="field"><label>401(k) balance</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-k401bal" value="0" step="1000" oninput="recalc()" /></div></div>
+        <div class="field"><label>Roth IRA balance</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-rothbal" value="0" step="1000" oninput="recalc()" /></div></div>
+        <div class="field"><label>Brokerage balance</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-brokbal" value="0" step="1000" oninput="recalc()" /></div></div>
+        <div class="field"><label>Cash / checking</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-cash" value="0" step="1000" oninput="recalc()" /></div></div>
+        <div class="field"><label>Bonds / emergency fund</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-bonds" value="0" step="1000" oninput="recalc()" /></div></div>
+        <div class="field"><label>Other assets</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-other" value="0" step="1000" oninput="recalc()" /></div></div>
+      </div>
+
+      <div class="sec-label">Liabilities</div>
+      <div class="g3 mb">
+        <div class="field"><label>Student loans</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-loans" value="0" step="1000" oninput="recalc()" /></div></div>
+        <div class="field"><label>Credit card debt</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-ccdebt" value="0" step="500" oninput="recalc()" /></div></div>
+        <div class="field"><label>Other liabilities</label><div class="field-row"><span class="field-pre">$</span><input type="number" id="s-otherliab" value="0" step="1000" oninput="recalc()" /></div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Stock holdings</span>
+        <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">shares · cost basis · account · expected return</span>
+      </div>
+
+      <!-- Column headers -->
+      <div style="display:grid;grid-template-columns:90px 1fr 100px 100px 100px 110px 32px;gap:8px;padding:0 0 6px;border-bottom:1px solid var(--border);margin-bottom:2px">
+        <div style="font-size:9px;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Ticker</div>
+        <div style="font-size:9px;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Account</div>
+        <div style="font-size:9px;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Shares</div>
+        <div style="font-size:9px;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Price</div>
+        <div style="font-size:9px;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Cost basis</div>
+        <div style="font-size:9px;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Exp. return</div>
+        <div></div>
+      </div>
+
+      <div id="settings-holdings"></div>
+
+      <!-- Add new stock row -->
+      <div class="add-stock-row" id="add-stock-row">
+        <div>
+          <div class="field-sub-label">Ticker</div>
+          <input type="text" id="new-ticker" placeholder="e.g. MSFT" style="text-transform:uppercase" />
+        </div>
+        <div>
+          <div class="field-sub-label">Account</div>
+          <select id="new-account" class="acct-select">
+            <option value="brokerage">Brokerage</option>
+            <option value="roth">Roth IRA</option>
+            <option value="k401">401(k)</option>
+            <option value="watch">Watchlist</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-sub-label">Shares</div>
+          <input type="number" id="new-shares" placeholder="0" step="1" min="0" />
+        </div>
+        <div>
+          <div class="field-sub-label">Price / sh</div>
+          <input type="number" id="new-price" placeholder="0.00" step="0.01" min="0" />
+        </div>
+        <div>
+          <div class="field-sub-label">Cost basis</div>
+          <input type="number" id="new-cb" placeholder="0.00" step="0.01" min="0" />
+        </div>
+        <div>
+          <div class="field-sub-label">Return %</div>
+          <input type="number" id="new-ret" placeholder="10" step="0.5" value="10" />
+        </div>
+        <button class="btn-add-stock" onclick="addHolding()">+ Add</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">
+        Watchlist positions appear in the portfolio view but are excluded from net worth calculations.
+      </div>
+
+      <!-- ── IMPORT SECTION ── -->
+      <div style="margin-top:28px">
+        <div class="sec-label" style="margin-top:0">Import portfolio</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+
+          <!-- Excel / CSV drop zone -->
+          <div id="xlsxDropZone"
+            style="border:1.5px dashed var(--border2);border-radius:12px;padding:20px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s"
+            onclick="document.getElementById('xlsxFileInput').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--blue)';this.style.background='var(--blue-dim)'"
+            ondragleave="this.style.borderColor='var(--border2)';this.style.background=''"
+            ondrop="handleXlsxDrop(event)">
+            <div style="font-size:24px;margin-bottom:8px">📊</div>
+            <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">Excel or CSV</div>
+            <div style="font-size:11px;color:var(--text3)">Drop file or click to browse</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:6px">.xlsx · .xls · .csv</div>
+            <input type="file" id="xlsxFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleXlsxFile(this.files[0])" />
+          </div>
+
+          <!-- Screenshot / image drop zone -->
+          <div id="imgDropZone"
+            style="border:1.5px dashed var(--border2);border-radius:12px;padding:20px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s"
+            onclick="document.getElementById('imgFileInput').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--purple)';this.style.background='var(--purple-dim)'"
+            ondragleave="this.style.borderColor='var(--border2)';this.style.background=''"
+            ondrop="handleImgDrop(event)">
+            <div style="font-size:24px;margin-bottom:8px">🖼️</div>
+            <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">Screenshot</div>
+            <div style="font-size:11px;color:var(--text3)">Brokerage screenshot, Robinhood, etc.</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:6px">.png · .jpg · .webp</div>
+            <input type="file" id="imgFileInput" accept="image/*" style="display:none" onchange="handleImgFile(this.files[0])" />
+          </div>
+        </div>
+
+        <!-- Status / preview area -->
+        <div id="importStatus" style="display:none;border-radius:10px;padding:14px 16px;font-size:13px;margin-bottom:12px"></div>
+
+        <!-- Preview table before confirming -->
+        <div id="importPreview" style="display:none">
+          <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px">Preview — confirm before importing</div>
+          <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:10px">
+            <table style="width:100%;border-collapse:collapse" id="previewTable"></table>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="confirmImport()" style="background:var(--green-dim);border:1px solid rgba(62,207,142,0.35);border-radius:8px;padding:8px 20px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body)">✓ Import these holdings</button>
+            <button onclick="cancelImport()" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text3);font-size:13px;cursor:pointer;font-family:var(--font-body)">Cancel</button>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--text3);line-height:1.7">
+          <strong style="color:var(--text2)">Excel/CSV format:</strong> columns should include Ticker (or Symbol), Shares (or Quantity), Price, Cost Basis (optional). Header row required.<br/>
+          <strong style="color:var(--text2)">Screenshot:</strong> uses AI vision to read your brokerage screenshot. Works with Robinhood, Fidelity, Schwab, E*TRADE, etc.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ STATE ═══════════════
+let scenarioMult = 1.0;
+let projChartInst = null, allocChartInst = null, donutChartInst = null, portAllocChartInst = null, ovChartInst = null, goalsChartInst = null, incomeChartInst = null;
+const HOLDINGS = [];
+
+// ═══════════════ HELPERS ═══════════════
+function G(id) { return parseFloat(document.getElementById(id).value)||0; }
+function fmt(n,dec=0) {
+  const a=Math.abs(Math.round(n));
+  const s=n<0?'-':'';
+  if(a>=1e6) return s+'$'+(a/1e6).toFixed(2)+'M';
+  if(a>=1e3) return s+'$'+a.toLocaleString();
+  return s+'$'+a;
+}
+function fmtK(n) {
+  const a=Math.abs(Math.round(n));
+  const s=n<0?'-':'';
+  if(a>=1e6) return s+'$'+(a/1e6).toFixed(1)+'M';
+  if(a>=1e3) return s+'$'+(a/1e3).toFixed(0)+'K';
+  return s+'$'+a;
+}
+function pct(a,b) { return b>0?Math.round(a/b*100):0; }
+
+// ═══════════════ TAX MATH ═══════════════
+function fedTax(t) {
+  const b=[[11925,.10],[48475,.12],[103350,.22],[197300,.24],[250525,.32],[626350,.35],[Infinity,.37]];
+  let x=0,p=0; for(const[top,r]of b){if(t<=p)break;x+=(Math.min(t,top)-p)*r;p=top;} return x;
+}
+function nysTax(t) {
+  const b=[[8500,.04],[11700,.045],[13900,.0525],[80650,.055],[215400,.06],[1077550,.0685],[5e6,.0965],[25e6,.103],[Infinity,.109]];
+  let x=0,p=0; for(const[top,r]of b){if(t<=p)break;x+=(Math.min(t,top)-p)*r;p=top;} return x;
+}
+function nycTax(t) {
+  const b=[[12000,.03078],[25000,.03762],[50000,.03819],[Infinity,.03876]];
+  let x=0,p=0; for(const[top,r]of b){if(t<=p)break;x+=(Math.min(t,top)-p)*r;p=top;} return x;
+}
+function mfjNysTax(t) {
+  const b=[[17150,.04],[23600,.045],[27900,.0525],[161550,.055],[323200,.06],[2155350,.0685],[5e6,.0965],[25e6,.103],[Infinity,.109]];
+  let x=0,p=0; for(const[top,r]of b){if(t<=p)break;x+=(Math.min(t,top)-p)*r;p=top;} return x;
+}
+
+function calcTaxes() {
+  const salary=G('b-salary'), bonus=G('b-bonus'), other=G('b-other');
+  const gross=salary+bonus+other;
+  const k401Annual=G('b-k401')*12;
+  const filing=document.getElementById('t-filing').value;
+  const stdDed=filing==='mfj'?32200:16100;
+  const nysDed=filing==='mfj'?16050:8000;
+  const fedTaxable=Math.max(0,gross-k401Annual-stdDed);
+  const nysTaxable=Math.max(0,gross-k401Annual-nysDed);
+  const fed=fedTax(fedTaxable);
+  const nys=filing==='mfj'?mfjNysTax(nysTaxable):nysTax(nysTaxable);
+  const nyc=nycTax(nysTaxable);
+  const fica=Math.min(salary,176100)*0.062+salary*0.0145+Math.max(0,gross-200000)*0.009;
+  const total=fed+nys+nyc+fica;
+  const takeHome=(gross-total)/12;
+  return {gross,k401Annual,fedTaxable,nysTaxable,fed,nys,nyc,fica,total,takeHome,effRate:total/gross*100};
+}
+
+// ═══════════════ MASTER RECALC ═══════════════
+function _recalcCore() {
+  const T=calcTaxes();
+  const rent=G('b-rent'),utils=G('b-utilities'),ins=G('b-insurance');
+  const groc=G('b-groceries'),dining=G('b-dining'),trans=G('b-transport');
+  const health=G('b-health'),ent=G('b-entertainment'),subs=G('b-subscriptions');
+  const travel=G('b-travel'),misc=G('b-misc');
+  const loans=G('b-loans'),cc=G('b-cc'),od=G('b-otherdebt');
+  const k401mo=G('b-k401'),roth=G('b-roth'),brok=G('b-brokerage'),emerg=G('b-emergency');
+  const housing=rent+utils+ins;
+  const living=groc+dining+trans+health+ent+subs+travel+misc;
+  const debt=loans+cc+od;
+  const invest=k401mo+roth+brok+emerg;
+  const totalExp=housing+living+debt+invest;
+  const surplus=T.takeHome-totalExp;
+  const investAnnual=invest*12;
+  const savingsRate=T.takeHome>0?pct(invest+Math.max(0,surplus),T.takeHome):0;
+
+  // Limit warnings
+  document.getElementById('k401-warn').style.display=k401mo*12>23500?'inline':'none';
+  document.getElementById('roth-warn').style.display=roth*12>7000?'inline':'none';
+
+  updateBudgetPage(T,housing,living,debt,invest,totalExp,surplus);
+  updateTaxPage(T);
+  updateProjection();
+  updateOverview(T,housing,living,debt,invest,surplus,savingsRate);
+  updatePortfolio();
+  updateGoals();
+}
+
+// ═══════════════ BUDGET PAGE ═══════════════
+function updateBudgetPage(T,housing,living,debt,invest,totalExp,surplus) {
+  const surplusColor=surplus>=0?'var(--green)':'var(--red)';
+  document.getElementById('r-takehome').textContent=fmt(T.takeHome);
+  document.getElementById('r-expenses').textContent='-'+fmt(totalExp);
+  document.getElementById('r-invested').textContent=fmt(invest);
+  const surEl=document.getElementById('r-surplus');
+  surEl.textContent=(surplus>=0?'+':'')+fmt(surplus);
+  surEl.className='m-value '+(surplus>=0?'green':'red');
+
+  const cfEl=document.getElementById('budget-cf');
+  cfEl.innerHTML=`
+    <div class="cf-row"><span class="cf-label">Monthly take-home</span><span class="v-green">${fmt(T.takeHome)}</span></div>
+    <div class="cf-row cf-sub"><span class="cf-label">Housing</span><span class="v-red">−${fmt(housing)}</span></div>
+    <div class="cf-row cf-sub"><span class="cf-label">Living expenses</span><span class="v-red">−${fmt(living)}</span></div>
+    ${debt>0?`<div class="cf-row cf-sub"><span class="cf-label">Debt payments</span><span class="v-red">−${fmt(debt)}</span></div>`:''}
+    <div class="cf-row cf-sub"><span class="cf-label">Investments & savings</span><span class="v-blue">−${fmt(invest)}</span></div>
+    <div class="cf-row"><span class="cf-label">Monthly surplus / deficit</span><span style="font-family:var(--font-mono);color:${surplusColor}">${surplus>=0?'+':''}${fmt(surplus)}</span></div>`;
+
+  const barsEl=document.getElementById('budget-bars');
+  const total=T.takeHome;
+  const bars=[
+    {name:'Housing',val:housing,color:'var(--red)'},
+    {name:'Living',val:living,color:'var(--amber)'},
+    {name:'Investments',val:invest,color:'var(--blue)'},
+    {name:'Surplus',val:Math.max(0,surplus),color:'var(--green)'},
+  ];
+  barsEl.innerHTML=bars.map(b=>`<div class="bar-row">
+    <span class="bar-name">${b.name}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,pct(b.val,total))}%;background:${b.color}"></div></div>
+    <span class="bar-val">${fmt(b.val)} <span style="color:var(--text3)">${pct(b.val,total)}%</span></span>
+  </div>`).join('');
+}
+
+// ═══════════════ TAX PAGE ═══════════════
+function updateTaxPage(T) {
+  document.getElementById('t-gross').textContent=fmt(T.gross);
+  document.getElementById('t-k401ded').textContent='−'+fmt(T.k401Annual);
+  document.getElementById('t-fedtaxable').textContent=fmt(T.fedTaxable);
+  document.getElementById('t-monthly').textContent='−'+fmt(T.total/12);
+  document.getElementById('t-effrate').textContent=T.effRate.toFixed(1)+'%';
+  document.getElementById('t-takehome2').textContent=fmt(T.takeHome);
+  const marginal=T.fedTaxable>197300?'32%':T.fedTaxable>103350?'22%':T.fedTaxable>48475?'12%':'10%';
+  document.getElementById('t-marginal').textContent=marginal;
+
+  document.getElementById('tax-breakdown').innerHTML=`
+    <div class="cf-row"><span class="cf-label">Federal income tax <span style="font-size:10px;color:var(--text3)">(taxable: ${fmt(T.fedTaxable)})</span></span><span class="v-red">−${fmt(T.fed)}</span></div>
+    <div class="cf-row"><span class="cf-label">NY State income tax</span><span class="v-red">−${fmt(T.nys)}</span></div>
+    <div class="cf-row"><span class="cf-label">NYC local resident tax</span><span class="v-red">−${fmt(T.nyc)}</span></div>
+    <div class="cf-row"><span class="cf-label">Social Security (6.2%)</span><span class="v-red">−${fmt(Math.min(G('b-salary'),176100)*0.062)}</span></div>
+    <div class="cf-row"><span class="cf-label">Medicare (1.45%+)</span><span class="v-red">−${fmt(G('b-salary')*0.0145+Math.max(0,T.gross-200000)*0.009)}</span></div>
+    <div class="cf-row"><span class="cf-label">Total annual taxes</span><span class="v-red">−${fmt(T.total)} <span style="font-size:11px;color:var(--text3)">${T.effRate.toFixed(1)}% effective</span></span></div>`;
+
+  const rateData=[
+    {name:'Federal',rate:(T.fed/T.gross*100).toFixed(1),color:'var(--red)'},
+    {name:'NY State',rate:(T.nys/T.gross*100).toFixed(1),color:'var(--amber)'},
+    {name:'NYC local',rate:(T.nyc/T.gross*100).toFixed(1),color:'var(--purple)'},
+    {name:'FICA',rate:(T.fica/T.gross*100).toFixed(1),color:'var(--blue)'},
+  ];
+  document.getElementById('tax-rate-bars').innerHTML=rateData.map(r=>`<div class="bar-row">
+    <span class="bar-name">${r.name}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,parseFloat(r.rate)*4)}%;background:${r.color}"></div></div>
+    <span class="bar-val" style="color:${r.color}">${r.rate}%</span>
+  </div>`).join('');
+}
+
+// ═══════════════ PROJECTION ═══════════════
+function calcProjection(mult) {
+  const years=Math.round(G('p-years'));
+  const r401=G('p-r401')/100*mult, rroth=G('p-rroth')/100*mult;
+  const rbrok=G('p-rbrok')/100*mult, rcash=G('p-rcash')/100*mult;
+  const rbond=G('p-rbond')/100; // bonds fixed, no scenario
+  const salGrowth=G('p-salgrowth')/100, expInfl=G('p-expinfl')/100;
+
+  let k401=G('s-k401bal'), roth=G('s-rothbal'), brok=G('s-brokbal');
+  let cash=G('s-cash'), bonds=G('s-bonds');
+  let sVals=HOLDINGS.map(h=> h.account==='watch' ? 0 : h.shares*h.price);
+  const liabilities=G('s-loans')+G('s-ccdebt')+G('s-otherliab');
+
+  const K401MO=G('b-k401'), ROTHMO=G('b-roth'), BROKMO=G('b-brokerage'), EMERGMO=G('b-emergency');
+  const BASE_EXP=G('b-rent')+G('b-utilities')+G('b-insurance')+G('b-groceries')+G('b-dining')+G('b-transport')+G('b-health')+G('b-entertainment')+G('b-subscriptions')+G('b-travel')+G('b-misc');
+
+  const rows=[];
+  for(let yr=1;yr<=years;yr++) {
+    const sc=Math.pow(1+salGrowth,yr-1), ec=Math.pow(1+expInfl,yr-1);
+    const salary=G('b-salary')*sc, bonus=G('b-bonus')*sc, gross=salary+bonus;
+    const k401Annual=K401MO*12;
+    const fed=fedTax(Math.max(0,gross-k401Annual-16100));
+    const nys2=nysTax(Math.max(0,gross-k401Annual-8000));
+    const nyc2=nycTax(Math.max(0,gross-k401Annual-8000));
+    const fica=Math.min(salary,176100)*0.062+salary*0.0145;
+    const takeHome=gross-fed-nys2-nyc2-fica;
+    const investMo=K401MO+ROTHMO+BROKMO+EMERGMO;
+    const surplus=takeHome-(BASE_EXP*ec*12)-(investMo*12);
+
+    k401=k401*(1+r401)+k401Annual;
+    roth=roth*(1+rroth)+ROTHMO*12;
+    brok=brok*(1+rbrok)+(BROKMO+EMERGMO)*12+Math.max(0,surplus);
+    cash=cash*(1+rcash);
+    bonds=bonds*(1+rbond);
+    sVals=sVals.map((v,i)=>v*(1+(HOLDINGS[i].ret/100)*mult));
+    const stocks=sVals.reduce((a,b)=>a+b,0);
+    const total=k401+roth+brok+cash+bonds+stocks;
+    rows.push({yr,salary:Math.round(gross),takeHome:Math.round(takeHome),k401:Math.round(k401),roth:Math.round(roth),brok:Math.round(brok),cash:Math.round(cash),bonds:Math.round(bonds),stocks:Math.round(stocks),total:Math.round(total)});
+  }
+  return {rows,liabilities};
+}
+
+function updateProjection() {
+  const {rows,liabilities}=calcProjection(scenarioMult);
+  window._projRows=rows;
+  const nwNow=getNowNW();
+  const y5=rows[Math.min(4,rows.length-1)];
+  const y10=rows[Math.min(9,rows.length-1)];
+  const yEnd=rows[rows.length-1];
+  const target=G('p-target');
+
+  document.getElementById('proj-kpis').innerHTML=`
+    <div class="metric"><div class="m-label">Today</div><div class="m-value">${fmt(nwNow)}</div></div>
+    <div class="metric"><div class="m-label">Year 5</div><div class="m-value blue">${fmt(y5.total)}</div></div>
+    <div class="metric"><div class="m-label">Year 10</div><div class="m-value blue">${fmt(y10?y10.total:0)}</div></div>
+    <div class="metric"><div class="m-label">Year ${Math.round(G('p-years'))}</div><div class="m-value green">${fmt(yEnd.total)}</div></div>
+    <div class="metric"><div class="m-label">vs target</div><div class="m-value ${yEnd.total>=target?'green':'amber'}">${yEnd.total>=target?'✓ Met':'−'+fmt(target-yEnd.total)}</div></div>`;
+
+  // Find year target is hit
+  const hitYear=rows.find(r=>r.total>=target);
+  document.getElementById('proj-target-label').textContent=hitYear?`Target $${(target/1e6).toFixed(1)}M reached Year ${hitYear.yr}`:`Target of ${fmt(target)} not reached in horizon`;
+
+  drawProjChart(rows, nwNow);
+  drawProjTable(rows);
+  if(document.getElementById('ptab-alloc').classList.contains('active')) drawAllocChart(rows);
+  if(document.getElementById('ptab-income').classList.contains('active')) drawIncomeChart(rows);
+}
+
+function drawProjChart(rows, nwNow) {
+  const target=G('p-target');
+  if(projChartInst) projChartInst.destroy();
+  const ctx=document.getElementById('projNwChart').getContext('2d');
+  const targetLine=new Array(rows.length).fill(target);
+  projChartInst=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:rows.map(r=>`Yr ${r.yr}`),
+      datasets:[
+        {label:'Net worth',data:rows.map(r=>r.total),borderColor:'#3ecf8e',backgroundColor:'rgba(62,207,142,0.06)',borderWidth:2.5,fill:true,tension:0.35,pointRadius:0,pointHoverRadius:4},
+        {label:'401(k)',data:rows.map(r=>r.k401),borderColor:'#5b9cf6',backgroundColor:'transparent',borderWidth:1.5,tension:0.35,pointRadius:0,pointHoverRadius:3},
+        {label:'Roth IRA',data:rows.map(r=>r.roth),borderColor:'#a78bfa',backgroundColor:'transparent',borderWidth:1.5,tension:0.35,pointRadius:0,pointHoverRadius:3},
+        {label:'Brokerage',data:rows.map(r=>r.brok),borderColor:'#f5a623',backgroundColor:'transparent',borderWidth:1.5,tension:0.35,pointRadius:0,pointHoverRadius:3},
+        {label:'Stocks',data:rows.map(r=>r.stocks),borderColor:'#f26b5b',backgroundColor:'transparent',borderWidth:1.5,borderDash:[4,3],tension:0.35,pointRadius:0,pointHoverRadius:3},
+        {label:'Target',data:targetLine,borderColor:'rgba(255,255,255,0.2)',backgroundColor:'transparent',borderWidth:1,borderDash:[6,4],pointRadius:0},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1f24',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,callbacks:{label:c=>' '+c.dataset.label+': '+fmt(c.parsed.y)}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#5a5753',maxTicksLimit:10}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#5a5753',callback:v=>fmtK(v)}}
+      }
+    }
+  });
+  document.getElementById('proj-legend').innerHTML=[
+    {l:'Net worth',c:'#3ecf8e'},{l:'401(k)',c:'#5b9cf6'},{l:'Roth IRA',c:'#a78bfa'},
+    {l:'Brokerage',c:'#f5a623'},{l:'Stocks',c:'#f26b5b'},{l:'Target',c:'rgba(255,255,255,0.25)'},
+  ].map(x=>`<div class="legend-item"><div class="legend-dot" style="background:${x.c}"></div>${x.l}</div>`).join('');
+}
+
+function drawProjTable(rows) {
+  const milestones=[1,3,5,7,10,15,20,25,30].filter(y=>y<=rows.length);
+  const el=document.getElementById('projTable');
+  el.innerHTML=`<thead><tr>
+    <th>Year</th><th>Salary</th><th>Take-home</th><th>401(k)</th><th>Roth</th><th>Brokerage</th><th>Stocks</th><th>Bonds</th><th>Net Worth</th>
+  </tr></thead><tbody>${milestones.map(i=>{
+    const r=rows[i-1];
+    return `<tr class="${[5,10,20].includes(r.yr)?'milestone':''}">
+      <td>Year ${r.yr}</td>
+      <td>${fmtK(r.salary)}</td>
+      <td style="color:#3ecf8e">${fmtK(r.takeHome)}</td>
+      <td style="color:#5b9cf6">${fmtK(r.k401)}</td>
+      <td style="color:#a78bfa">${fmtK(r.roth)}</td>
+      <td style="color:#f5a623">${fmtK(r.brok)}</td>
+      <td style="color:#f26b5b">${fmtK(r.stocks)}</td>
+      <td style="color:#2dd4bf">${fmtK(r.bonds)}</td>
+      <td style="color:#3ecf8e;font-weight:600">${fmtK(r.total)}</td>
+    </tr>`;
+  }).join('')}</tbody>`;
+}
+
+function drawAllocChart(rows) {
+  if(allocChartInst) allocChartInst.destroy();
+  const filtered=rows.filter((_,i)=>i%2===0||i===rows.length-1);
+  const ctx=document.getElementById('projAllocChart').getContext('2d');
+  allocChartInst=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:filtered.map(r=>`Yr ${r.yr}`),
+      datasets:[
+        {label:'401(k)',data:filtered.map(r=>r.k401),backgroundColor:'#5b9cf6',stack:'a'},
+        {label:'Roth IRA',data:filtered.map(r=>r.roth),backgroundColor:'#a78bfa',stack:'a'},
+        {label:'Brokerage',data:filtered.map(r=>r.brok),backgroundColor:'#f5a623',stack:'a'},
+        {label:'Stocks',data:filtered.map(r=>r.stocks),backgroundColor:'#f26b5b',stack:'a'},
+        {label:'Bonds',data:filtered.map(r=>r.bonds),backgroundColor:'#2dd4bf',stack:'a'},
+        {label:'Cash',data:filtered.map(r=>r.cash),backgroundColor:'#888780',stack:'a'},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1f24',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,callbacks:{label:c=>' '+c.dataset.label+': '+fmt(c.parsed.y)}}},
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{font:{size:10},color:'#5a5753'}},
+        y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#5a5753',callback:v=>fmtK(v)}}
+      }
+    }
+  });
+}
+
+function drawIncomeChart(rows) {
+  if(incomeChartInst) incomeChartInst.destroy();
+  const ctx=document.getElementById('projIncomeChart').getContext('2d');
+  incomeChartInst=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:rows.map(r=>`Yr ${r.yr}`),
+      datasets:[
+        {label:'Gross income',data:rows.map(r=>r.salary),backgroundColor:'rgba(91,156,246,0.3)',borderColor:'#5b9cf6',borderWidth:1,stack:'a'},
+        {label:'Take-home',data:rows.map(r=>r.takeHome),backgroundColor:'rgba(62,207,142,0.4)',borderColor:'#3ecf8e',borderWidth:1,stack:'b'},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1f24',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,callbacks:{label:c=>' '+c.dataset.label+': '+fmt(c.parsed.y)}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10},color:'#5a5753',maxTicksLimit:12}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#5a5753',callback:v=>fmtK(v)}}
+      }
+    }
+  });
+}
+
+// ═══════════════ OVERVIEW ═══════════════
+function getNowNW() {
+  const stocks=HOLDINGS.filter(h=>h.account!=='watch').reduce((s,h)=>s+h.shares*h.price,0);
+  const liab=G('s-loans')+G('s-ccdebt')+G('s-otherliab');
+  return G('s-k401bal')+G('s-rothbal')+G('s-brokbal')+G('s-cash')+G('s-bonds')+stocks+G('s-other')-liab;
+}
+
+function updateOverview(T,housing,living,debt,invest,surplus,savingsRate) {
+  const nwNow=getNowNW();
+  const stocks=HOLDINGS.reduce((s,h)=>s+h.shares*h.price,0);
+  const {rows}=calcProjection(1.0);
+  const y10=rows[9]||rows[rows.length-1];
+  const y20=rows[19]||rows[rows.length-1];
+
+  document.getElementById('overview-kpis').innerHTML=`
+    <div class="metric green-accent"><div class="m-label">Net worth</div><div class="m-value green">${fmt(nwNow)}</div><div class="m-sub">all assets</div></div>
+    <div class="metric"><div class="m-label">Monthly take-home</div><div class="m-value">${fmt(T.takeHome)}</div><div class="m-sub">after all taxes</div></div>
+    <div class="metric blue-accent"><div class="m-label">Invested / mo</div><div class="m-value blue">${fmt(invest)}</div><div class="m-sub">all accounts</div></div>
+    <div class="metric"><div class="m-label">10-yr projection</div><div class="m-value blue">${fmt(y10.total)}</div><div class="m-sub">base case</div></div>
+    <div class="metric"><div class="m-label">20-yr projection</div><div class="m-value green">${fmt(y20.total)}</div><div class="m-sub">base case</div></div>`;
+
+  document.getElementById('overview-cf').innerHTML=`
+    <div class="cf-row"><span class="cf-label">Take-home / month</span><span class="v-green">${fmt(T.takeHome)}</span></div>
+    <div class="cf-row cf-sub"><span class="cf-label">Housing</span><span class="v-red">−${fmt(housing)}</span></div>
+    <div class="cf-row cf-sub"><span class="cf-label">Living</span><span class="v-red">−${fmt(living)}</span></div>
+    <div class="cf-row cf-sub"><span class="cf-label">Investments</span><span class="v-blue">−${fmt(invest)}</span></div>
+    <div class="cf-row"><span class="cf-label">Surplus</span><span class="${surplus>=0?'v-green':'v-red'}">${surplus>=0?'+':''}${fmt(surplus)}</span></div>`;
+
+  // Savings ring
+  const angle=Math.min(226,226*(savingsRate/100));
+  document.getElementById('ringFill').style.strokeDashoffset=226-angle;
+  document.getElementById('ringPct').textContent=savingsRate+'%';
+  document.getElementById('savings-detail').textContent=`${fmt(invest+Math.max(0,surplus))}/mo invested or saved`;
+
+  // Stocks summary
+  const totalStockVal=HOLDINGS.filter(h=>h.account!=='watch').reduce((s,h)=>s+h.shares*h.price,0);
+  const totalPnL=HOLDINGS.filter(h=>h.cb>0&&h.shares>0&&h.account!=='watch').reduce((s,h)=>s+h.shares*(h.price-h.cb),0);
+  const brokerageStocks=HOLDINGS.filter(h=>h.account==='brokerage'&&h.shares>0).reduce((s,h)=>s+h.shares*h.price,0);
+  const rothStocks=HOLDINGS.filter(h=>h.account==='roth'&&h.shares>0).reduce((s,h)=>s+h.shares*h.price,0);
+  document.getElementById('ov-stocks').innerHTML=`
+    <div class="cf-row"><span class="cf-label">Total stock value</span><span class="v-mono">${fmt(totalStockVal)}</span></div>
+    <div class="cf-row"><span class="cf-label">Unrealized P&L</span><span class="${totalPnL>=0?'v-green':'v-red'}">${totalPnL>=0?'+':''}${fmt(totalPnL)}</span></div>
+    <div class="cf-row"><span class="cf-label">In brokerage</span><span class="v-mono">${fmt(brokerageStocks)}</span></div>
+    <div class="cf-row"><span class="cf-label">In Roth IRA</span><span class="v-mono">${fmt(rothStocks)}</span></div>
+    <div class="cf-row"><span class="cf-label">Positions</span><span class="v-mono">${HOLDINGS.filter(h=>h.shares>0&&h.account!=='watch').length} owned · ${HOLDINGS.filter(h=>h.account==='watch').length} watchlist</span></div>`;
+
+  // Donut
+  const donutData=[
+    {name:'Housing',val:housing,color:'#f26b5b'},
+    {name:'Living',val:living,color:'#f5a623'},
+    {name:'Investments',val:invest,color:'#5b9cf6'},
+    {name:'Surplus',val:Math.max(0,surplus),color:'#3ecf8e'},
+  ].filter(d=>d.val>0);
+  if(donutChartInst) donutChartInst.destroy();
+  const dCtx=document.getElementById('donutChart').getContext('2d');
+  donutChartInst=new Chart(dCtx,{
+    type:'doughnut',
+    data:{
+      labels:donutData.map(d=>d.name),
+      datasets:[{data:donutData.map(d=>d.val),backgroundColor:donutData.map(d=>d.color),borderWidth:0,hoverOffset:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1f24',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,callbacks:{label:c=>` ${c.label}: ${fmt(c.raw)} (${pct(c.raw,T.takeHome)}%)`}}}}
+  });
+  document.getElementById('donut-list').innerHTML=donutData.map(d=>`
+    <div class="donut-item">
+      <span class="donut-name"><span class="donut-dot" style="background:${d.color}"></span>${d.name}</span>
+      <span class="donut-val">${fmt(d.val)} <span style="color:var(--text3)">${pct(d.val,T.takeHome)}%</span></span>
+    </div>`).join('');
+
+  // Overview NW chart (mini)
+  if(ovChartInst) ovChartInst.destroy();
+  const ovCtx=document.getElementById('ovNwChart').getContext('2d');
+  ovChartInst=new Chart(ovCtx,{
+    type:'line',
+    data:{
+      labels:rows.map(r=>`Yr ${r.yr}`),
+      datasets:[
+        {data:rows.map(r=>r.total),borderColor:'#3ecf8e',backgroundColor:'rgba(62,207,142,0.07)',borderWidth:2,fill:true,tension:0.4,pointRadius:0},
+        {data:rows.map(r=>r.k401),borderColor:'#5b9cf6',backgroundColor:'transparent',borderWidth:1,tension:0.4,pointRadius:0},
+        {data:rows.map(r=>r.stocks),borderColor:'#f26b5b',backgroundColor:'transparent',borderWidth:1,borderDash:[3,2],tension:0.4,pointRadius:0},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1f24',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,callbacks:{label:c=>` ${['Net worth','401(k)','Stocks'][c.datasetIndex]}: ${fmt(c.parsed.y)}`}}},scales:{x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{font:{size:9},color:'#5a5753',maxTicksLimit:8}},y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{font:{size:9},color:'#5a5753',callback:v=>fmtK(v)}}}}
+  });
+  document.getElementById('ov-legend').innerHTML=[{l:'Net worth',c:'#3ecf8e'},{l:'401(k)',c:'#5b9cf6'},{l:'Stocks',c:'#f26b5b'}].map(x=>`<div class="legend-item"><div class="legend-dot" style="background:${x.c}"></div>${x.l}</div>`).join('');
+  document.getElementById('ov-nw-end').textContent=fmt(y20.total)+' in 20yr';
+
+  // Tax overview
+  document.getElementById('ov-tax').innerHTML=`
+    <div class="cf-row"><span class="cf-label">Federal</span><span class="v-red">−${fmt(T.fed)}</span></div>
+    <div class="cf-row"><span class="cf-label">NY State</span><span class="v-red">−${fmt(T.nys)}</span></div>
+    <div class="cf-row"><span class="cf-label">NYC local</span><span class="v-red">−${fmt(T.nyc)}</span></div>
+    <div class="cf-row"><span class="cf-label">FICA</span><span class="v-red">−${fmt(T.fica)}</span></div>
+    <div class="cf-row"><span class="cf-label">Total / effective</span><span class="v-red">−${fmt(T.total)} <span style="font-size:10px;color:var(--text3)">${T.effRate.toFixed(1)}%</span></span></div>`;
+}
+
+// ═══════════════ PORTFOLIO ═══════════════
+// ═══════════════ ACCOUNT HELPERS ═══════════════
+const ACCT_LABELS = { brokerage:'Brokerage', roth:'Roth IRA', k401:'401(k)', watch:'Watchlist' };
+const ACCT_CLASS  = { brokerage:'acct-brokerage', roth:'acct-roth', k401:'acct-k401', watch:'acct-watch' };
+
+function acctBadge(account) {
+  const label = ACCT_LABELS[account] || account;
+  const cls   = ACCT_CLASS[account]  || 'acct-watch';
+  return `<span class="acct-badge ${cls}">${label}</span>`;
+}
+
+function addHolding() {
+  const ticker  = (document.getElementById('new-ticker').value || '').trim().toUpperCase();
+  const account = document.getElementById('new-account').value;
+  const shares  = parseFloat(document.getElementById('new-shares').value) || 0;
+  const price   = parseFloat(document.getElementById('new-price').value)  || 0;
+  const cb      = parseFloat(document.getElementById('new-cb').value)     || 0;
+  const ret     = parseFloat(document.getElementById('new-ret').value)    || 10;
+  if (!ticker) { document.getElementById('new-ticker').focus(); return; }
+  HOLDINGS.push({ ticker, name: ticker, price, shares, cb, ret, account });
+  // clear inputs
+  ['new-ticker','new-shares','new-price','new-cb'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('new-ret').value = '10';
+  renderSettingsHoldings();
+  recalc();
+}
+
+function removeHolding(i) {
+  HOLDINGS.splice(i, 1);
+  renderSettingsHoldings();
+  recalc();
+}
+
+// ═══════════════ PORTFOLIO ═══════════════
+function renderSettingsHoldings() {
+  document.getElementById('settings-holdings').innerHTML = HOLDINGS.map((h, i) => `
+    <div class="h-setting-row">
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--text);padding-top:6px">${h.ticker}</div>
+      <div>
+        <select class="acct-select" onchange="HOLDINGS[${i}].account=this.value;recalc()">
+          <option value="brokerage" ${h.account==='brokerage'?'selected':''}>Brokerage</option>
+          <option value="roth"      ${h.account==='roth'     ?'selected':''}>Roth IRA</option>
+          <option value="k401"      ${h.account==='k401'     ?'selected':''}>401(k)</option>
+          <option value="watch"     ${h.account==='watch'    ?'selected':''}>Watchlist</option>
+        </select>
+      </div>
+      <div><input type="number" value="${h.shares||''}" placeholder="0" step="1"
+        oninput="HOLDINGS[${i}].shares=parseFloat(this.value)||0;recalc()" /></div>
+      <div><input type="number" value="${h.price||''}" placeholder="0.00" step="0.01"
+        oninput="HOLDINGS[${i}].price=parseFloat(this.value)||0;recalc()" /></div>
+      <div><input type="number" value="${h.cb||''}" placeholder="0.00" step="0.01"
+        oninput="HOLDINGS[${i}].cb=parseFloat(this.value)||0;recalc()" /></div>
+      <div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="number" value="${h.ret}" step="0.5"
+            oninput="HOLDINGS[${i}].ret=parseFloat(this.value)||0;recalc()"
+            style="padding-right:4px" />
+          <span style="font-size:12px;color:var(--text3);flex-shrink:0">%</span>
+        </div>
+      </div>
+      <button class="btn-remove" onclick="removeHolding(${i})" title="Remove">×</button>
+    </div>`).join('');
+}
+
+function updatePortfolio() {
+  // Watchlist holdings excluded from net worth but shown in portfolio view
+  const activeH = HOLDINGS.filter(h => h.account !== 'watch');
+  const watchH  = HOLDINGS.filter(h => h.account === 'watch');
+  const total     = activeH.reduce((s,h)=>s+h.shares*h.price,0);
+  const totalAll  = HOLDINGS.reduce((s,h)=>s+h.shares*h.price,0);
+  const totalCost = activeH.filter(h=>h.cb>0&&h.shares>0).reduce((s,h)=>s+h.shares*h.cb,0);
+  const totalPnL  = activeH.filter(h=>h.cb>0&&h.shares>0).reduce((s,h)=>s+h.shares*(h.price-h.cb),0);
+  const pnlPct    = totalCost>0?(totalPnL/totalCost*100).toFixed(1):0;
+  const posCount  = activeH.filter(h=>h.shares>0).length;
+
+  // Account breakdown for KPIs
+  const byAcct = { brokerage:0, roth:0, k401:0 };
+  activeH.filter(h=>h.shares>0).forEach(h=>{ if(byAcct[h.account]!==undefined) byAcct[h.account]+=h.shares*h.price; });
+  const largest = HOLDINGS.filter(h=>h.shares>0).reduce((a,b)=>b.shares*b.price>a.shares*a.price?b:a, {ticker:'—',shares:0,price:0,account:'brokerage'});
+
+  document.getElementById('port-kpis').innerHTML=`
+    <div class="metric"><div class="m-label">Total value</div><div class="m-value">${fmt(total)}</div><div class="m-sub">${posCount} active positions</div></div>
+    <div class="metric ${totalPnL>=0?'green-accent':'red-accent'}"><div class="m-label">Unrealized P&L</div><div class="m-value ${totalPnL>=0?'green':'red'}">${totalPnL>=0?'+':''}${fmt(totalPnL)}</div><div class="m-sub">${totalPnL>=0?'+':''}${pnlPct}% overall</div></div>
+    <div class="metric"><div class="m-label">Largest position</div><div class="m-value" style="font-size:16px">${largest.ticker}</div><div class="m-sub">${acctBadge(largest.account)}</div></div>
+    <div class="metric"><div class="m-label">Watchlist</div><div class="m-value" style="font-size:16px">${watchH.length}</div><div class="m-sub">tracking only</div></div>`;
+
+  const colors=['#f26b5b','#5b9cf6','#a78bfa','#f5a623','#3ecf8e','#2dd4bf','#888780','#e879a0','#f97316','#06b6d4'];
+  const rows = HOLDINGS.filter(h=>h.shares>0).sort((a,b)=>b.shares*b.price-a.shares*a.price);
+  document.getElementById('holdingsBody').innerHTML=rows.map((h,i)=>{
+    const mv    = h.shares*h.price;
+    const pnl   = h.cb>0?h.shares*(h.price-h.cb):null;
+    const pnlP2 = h.cb>0?((h.price-h.cb)/h.cb*100).toFixed(1):null;
+    const isWatch = h.account==='watch';
+    return `<tr style="${isWatch?'opacity:0.55':''}">
+      <td>
+        <span class="ticker-badge ${h.ticker==='SIRI'?'siri-badge':''}">${h.ticker}</span>
+        <span style="color:var(--text2);font-size:12px">${h.name}</span>
+        ${isWatch?'<span style="font-size:10px;color:var(--text3);margin-left:4px">watchlist</span>':''}
+      </td>
+      <td style="text-align:left">${acctBadge(h.account)}</td>
+      <td style="font-family:var(--font-mono)">${h.shares.toLocaleString()}</td>
+      <td style="font-family:var(--font-mono)">$${h.price.toFixed(2)}</td>
+      <td style="font-family:var(--font-mono);font-weight:500">${isWatch?'<span style="color:var(--text3)">n/a</span>':fmt(mv)}</td>
+      <td style="font-family:var(--font-mono);color:var(--text3)">${h.cb>0?'$'+h.cb.toFixed(2):'—'}</td>
+      <td style="font-family:var(--font-mono);color:${pnl===null?'var(--text3)':pnl>=0?'var(--green)':'var(--red)'}">${pnl!==null?(pnl>=0?'+':'')+'$'+Math.round(Math.abs(pnl)).toLocaleString()+' ('+pnlP2+'%)':'—'}</td>
+      <td style="font-family:var(--font-mono);color:var(--text3)">${h.ret}%</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Add positions in Settings →</td></tr>`;
+
+  if(portAllocChartInst) portAllocChartInst.destroy();
+  const chartH = HOLDINGS.filter(h=>h.shares>0 && h.account!=='watch');
+  if(chartH.length>0) {
+    const pCtx=document.getElementById('portAllocChart').getContext('2d');
+    portAllocChartInst=new Chart(pCtx,{
+      type:'doughnut',
+      data:{
+        labels:chartH.map(h=>h.ticker),
+        datasets:[{data:chartH.map(h=>h.shares*h.price),backgroundColor:colors,borderWidth:0,hoverOffset:6}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+        plugins:{
+          legend:{display:true,position:'right',labels:{color:'#9a9691',font:{size:11},boxWidth:10,padding:8}},
+          tooltip:{backgroundColor:'#1c1f24',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
+            callbacks:{label:c=>` ${c.label}: ${fmt(c.raw)} (${pct(c.raw,total)}%)`}}
+        }
+      }
+    });
+  }
+
+  // Account breakdown sidebar
+  const acctTotals = {};
+  HOLDINGS.filter(h=>h.shares>0&&h.account!=='watch').forEach(h=>{
+    acctTotals[h.account]=(acctTotals[h.account]||0)+h.shares*h.price;
+  });
+  document.getElementById('port-accounts').innerHTML=`
+    <div class="cf-row"><span class="cf-label">401(k) (account)</span><span class="v-mono">${fmt(G('s-k401bal'))}</span></div>
+    <div class="cf-row"><span class="cf-label">Roth IRA (account)</span><span class="v-mono">${fmt(G('s-rothbal'))}</span></div>
+    <div class="cf-row"><span class="cf-label">Brokerage (account)</span><span class="v-mono">${fmt(G('s-brokbal'))}</span></div>
+    <div class="cf-row"><span class="cf-label">Bonds / emergency</span><span class="v-mono">${fmt(G('s-bonds'))}</span></div>
+    <div class="cf-row"><span class="cf-label">Cash</span><span class="v-mono">${fmt(G('s-cash'))}</span></div>
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
+    ${Object.entries(acctTotals).map(([a,v])=>`<div class="cf-row"><span class="cf-label">Stocks — ${ACCT_LABELS[a]||a}</span><span class="v-mono">${fmt(v)}</span></div>`).join('')}
+    <div class="cf-row"><span class="cf-label" style="font-weight:500">Total stocks (owned)</span><span class="v-mono" style="font-weight:500">${fmt(total)}</span></div>`;
+}
+
+// ═══════════════ GOALS ═══════════════
+function updateGoals() {
+  const nwNow=getNowNW();
+  const {rows}=calcProjection(1.0);
+  const target=G('p-target');
+  const hitYear=rows.find(r=>r.total>=target);
+  const y20=rows[Math.min(19,rows.length-1)];
+
+  const goals=[
+    {title:'$100K net worth',target:100000,current:nwNow,color:'#3ecf8e',desc:'Foundation milestone'},
+    {title:'6-mo emergency fund',target:30000,current:G('s-bonds')+G('s-cash'),color:'#5b9cf6',desc:'$30K liquid safety net'},
+    {title:'Max 401(k) annually',target:23500,current:G('b-k401')*12,color:'#a78bfa',desc:G('b-k401')*12>=23500?'Maxed!':'$'+(23500-G('b-k401')*12).toLocaleString()+' short'},
+    {title:'$500K net worth',target:500000,current:nwNow,color:'#f5a623',desc:'Half-million milestone'},
+    {title:'$1M net worth',target:1000000,current:nwNow,color:'#f26b5b',desc:rows.find(r=>r.total>=1000000)?`Year ${rows.find(r=>r.total>=1000000).yr}`:'Not in horizon'},
+    {title:'Retirement target',target:target,current:nwNow,color:'#2dd4bf',desc:hitYear?`Year ${hitYear.yr} (base case)`:'Extend horizon or increase savings'},
+  ];
+
+  document.getElementById('goals-grid').innerHTML=goals.map(g=>{
+    const p=Math.min(100,g.target>0?g.current/g.target*100:0);
+    const done=g.current>=g.target;
+    return `<div class="goal-card">
+      <div class="g-title" style="color:${done?g.color:'var(--text)'}">${g.title}${done?' ✓':''}</div>
+      <div class="g-sub">${g.desc}</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--font-mono);color:var(--text3)">
+        <span>${fmt(Math.min(g.current,g.target))}</span><span>${fmt(g.target)}</span>
+      </div>
+      <div class="goal-progress"><div class="goal-progress-fill" style="width:${p.toFixed(1)}%;background:${g.color}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Goals timeline chart
+  if(goalsChartInst) goalsChartInst.destroy();
+  const gCtx=document.getElementById('goalsChart').getContext('2d');
+  const milestones=[100000,250000,500000,1000000,2000000,target].filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b);
+  const hitYears=milestones.map(m=>{const r=rows.find(r2=>r2.total>=m);return r?r.yr:null;});
+  goalsChartInst=new Chart(gCtx,{
+    type:'bar',
+    data:{
+      labels:milestones.map(m=>fmtK(m)),
+      datasets:[{
+        label:'Year achieved',
+        data:hitYears.map(y=>y||0),
+        backgroundColor:hitYears.map(y=>y?'#3ecf8e':'rgba(90,87,83,0.3)'),
+        borderRadius:4,
+      }]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1f24',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,callbacks:{label:c=>c.raw>0?` Year ${c.raw}`:' Not in horizon'}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#5a5753'},min:0,max:Math.round(G('p-years'))+2},
+        y:{grid:{display:false},ticks:{font:{size:11},color:'#9a9691'}}
+      }
+    }
+  });
+
+  document.getElementById('retire-metrics').innerHTML=`
+    <div class="metric"><div class="m-label">Target</div><div class="m-value">${fmt(target)}</div><div class="m-sub">retirement number</div></div>
+    <div class="metric ${hitYear?'green-accent':''}"><div class="m-label">On track to hit</div><div class="m-value ${hitYear?'green':'amber'}">${hitYear?'Year '+hitYear.yr:'Extend horizon'}</div></div>
+    <div class="metric"><div class="m-label">Year 20 projection</div><div class="m-value ${y20.total>=target?'green':'blue'}">${fmt(y20.total)}</div><div class="m-sub">${y20.total>=target?'Exceeds target':'vs. '+fmt(target)+' target'}</div></div>`;
+}
+
+// ═══════════════ LOCALSTORAGE PERSISTENCE ═══════════════
+const LS_KEY = 'fin_dashboard_v3';
+
+const BUDGET_FIELDS = [
+  'b-salary','b-bonus','b-other',
+  'b-rent','b-utilities','b-insurance',
+  'b-groceries','b-dining','b-transport','b-health','b-entertainment','b-subscriptions','b-travel','b-misc',
+  'b-loans','b-cc','b-otherdebt',
+  'b-k401','b-roth','b-brokerage','b-emergency'
+];
+const SETTINGS_FIELDS = [
+  's-k401bal','s-rothbal','s-brokbal','s-cash','s-bonds','s-other',
+  's-loans','s-ccdebt','s-otherliab'
+];
+const PROJ_FIELDS = [
+  'p-r401','p-rroth','p-rbrok','p-rcash','p-rbond','p-salgrowth','p-expinfl','p-years','p-target'
+];
+const TAX_FIELDS = ['t-filing'];
+
+function saveState() {
+  const data = { budget:{}, settings:{}, proj:{}, tax:{}, holdings:[] };
+  BUDGET_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data.budget[id] = el.value;
+  });
+  SETTINGS_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data.settings[id] = el.value;
+  });
+  PROJ_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data.proj[id] = el.value;
+  });
+  const filingEl = document.getElementById('t-filing');
+  if (filingEl) data.tax['t-filing'] = filingEl.value;
+  data.holdings = HOLDINGS.map(h=>({...h}));
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+    const ind = document.getElementById('save-indicator');
+    if (ind) { ind.style.opacity='1'; clearTimeout(ind._t); ind._t=setTimeout(()=>ind.style.opacity='0',1400); }
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    BUDGET_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data.budget && data.budget[id] !== undefined) el.value = data.budget[id];
+    });
+    SETTINGS_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data.settings && data.settings[id] !== undefined) el.value = data.settings[id];
+    });
+    PROJ_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data.proj && data.proj[id] !== undefined) el.value = data.proj[id];
+    });
+    const filingEl = document.getElementById('t-filing');
+    if (filingEl && data.tax && data.tax['t-filing']) filingEl.value = data.tax['t-filing'];
+    if (data.holdings && Array.isArray(data.holdings) && data.holdings.length > 0) {
+      HOLDINGS.length = 0;
+      data.holdings.forEach(h => HOLDINGS.push(h));
+    }
+    return true;
+  } catch(e) { return false; }
+}
+
+function clearState() {
+  if (!confirm('Clear all saved data and reset to defaults?')) return;
+  try { localStorage.removeItem(LS_KEY); } catch(e) {}
+  location.reload();
+}
+
+// Hook saveState into recalc — single clean definition
+function recalc() { _recalcCore(); saveState(); }
+
+// ═══════════════ PORTFOLIO IMPORT — EXCEL / CSV ═══════════════
+let _pendingImport = [];
+
+function handleXlsxDrop(e) {
+  e.preventDefault();
+  document.getElementById('xlsxDropZone').style.borderColor = 'var(--border2)';
+  document.getElementById('xlsxDropZone').style.background = '';
+  const file = e.dataTransfer.files[0];
+  if (file) handleXlsxFile(file);
+}
+
+function handleXlsxFile(file) {
+  if (!file) return;
+  showImportStatus('reading', `Reading ${file.name}…`);
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let rows = [];
+      if (file.name.endsWith('.csv') || file.type === 'text/csv') {
+        // CSV path
+        const text = new TextDecoder().decode(e.target.result);
+        const lines = text.trim().split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+        const headers = lines[0].map(h => h.toLowerCase());
+        rows = lines.slice(1).map(row => {
+          const obj = {};
+          headers.forEach((h,i) => obj[h] = row[i]||'');
+          return obj;
+        });
+      } else {
+        // Excel path
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+        // Normalize keys to lowercase
+        rows = rows.map(r => {
+          const out = {};
+          Object.keys(r).forEach(k => out[k.toLowerCase().trim()] = String(r[k]).trim());
+          return out;
+        });
+      }
+      parseImportedRows(rows, 'brokerage');
+    } catch(err) {
+      showImportStatus('error', `Could not parse file: ${err.message}`);
+    }
+  };
+  reader.onerror = () => showImportStatus('error', 'Failed to read file.');
+  reader.readAsArrayBuffer(file);
+}
+
+function parseImportedRows(rows, defaultAccount) {
+  // Try to find known column names
+  const COL_TICKER = ['ticker','symbol','stock','name','security'];
+  const COL_SHARES = ['shares','quantity','qty','units','amount'];
+  const COL_PRICE  = ['price','last price','last','market price','current price','close'];
+  const COL_CB     = ['cost basis','avg cost','avg price','average cost','purchase price','cost'];
+
+  function findCol(row, candidates) {
+    const keys = Object.keys(row);
+    for (const c of candidates) {
+      const found = keys.find(k => k.toLowerCase().includes(c));
+      if (found) return found;
+    }
+    return null;
+  }
+
+  if (!rows.length) { showImportStatus('error', 'No data rows found.'); return; }
+
+  const sample = rows[0];
+  const tCol = findCol(sample, COL_TICKER);
+  const sCol = findCol(sample, COL_SHARES);
+  const pCol = findCol(sample, COL_PRICE);
+  const cCol = findCol(sample, COL_CB);
+
+  if (!tCol) { showImportStatus('error', 'Could not find a Ticker/Symbol column. Make sure your sheet has a "Ticker" or "Symbol" header.'); return; }
+
+  const parsed = rows.map(r => ({
+    ticker: (r[tCol]||'').toUpperCase().replace(/[^A-Z0-9./]/g,''),
+    shares: parseFloat((r[sCol]||'0').toString().replace(/[^0-9.-]/g,''))||0,
+    price:  parseFloat((r[pCol]||'0').toString().replace(/[^0-9.-]/g,''))||0,
+    cb:     parseFloat((r[cCol]||'0').toString().replace(/[^0-9.-]/g,''))||0,
+    ret:    10,
+    account: defaultAccount,
+  })).filter(r => r.ticker && r.ticker.length >= 1 && r.ticker.length <= 6);
+
+  if (!parsed.length) { showImportStatus('error', 'No valid ticker rows found after parsing.'); return; }
+  showPreview(parsed);
+}
+
+// ═══════════════ PORTFOLIO IMPORT — SCREENSHOT (AI VISION) ═══════════════
+function handleImgDrop(e) {
+  e.preventDefault();
+  document.getElementById('imgDropZone').style.borderColor = 'var(--border2)';
+  document.getElementById('imgDropZone').style.background = '';
+  const file = e.dataTransfer.files[0];
+  if (file) handleImgFile(file);
+}
+
+function handleImgFile(file) {
+  if (!file) return;
+  showImportStatus('loading', 'Reading image with AI vision — this takes a few seconds…');
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const base64 = e.target.result.split(',')[1];
+    const mediaType = file.type || 'image/png';
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: mediaType, data: base64 }
+              },
+              {
+                type: 'text',
+                text: `You are a financial data extractor. Look at this brokerage screenshot and extract all stock holdings. Respond ONLY with a JSON array, no markdown, no explanation. Each object must have: ticker (string, stock symbol), shares (number), price (number, current price per share), cb (number, cost basis or average cost per share, 0 if not shown). Example: [{"ticker":"AAPL","shares":10,"price":195.50,"cb":150.00}]. If a field is not visible, use 0. Only include actual stock positions, not cash or ETF descriptions.`
+              }
+            ]
+          }]
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error?.message || 'API error');
+      const text = data.content?.find(b => b.type==='text')?.text || '';
+      const clean = text.replace(/```json|```/g,'').trim();
+      let parsed;
+      try { parsed = JSON.parse(clean); } catch(e2) { throw new Error('Could not parse AI response as JSON.'); }
+      if (!Array.isArray(parsed) || !parsed.length) throw new Error('No holdings detected in screenshot.');
+      // Normalize and add defaults
+      const rows = parsed.map(h => ({
+        ticker:  (h.ticker||'').toUpperCase(),
+        shares:  parseFloat(h.shares)||0,
+        price:   parseFloat(h.price)||0,
+        cb:      parseFloat(h.cb)||0,
+        ret:     10,
+        account: 'brokerage',
+        name:    h.ticker||'',
+      })).filter(h => h.ticker && h.shares > 0);
+      if (!rows.length) throw new Error('No positions with shares found in screenshot.');
+      showPreview(rows);
+    } catch(err) {
+      showImportStatus('error', `AI vision failed: ${err.message}`);
+    }
+  };
+  reader.onerror = () => showImportStatus('error', 'Could not read image file.');
+  reader.readAsDataURL(file);
+}
+
+// ═══════════════ IMPORT PREVIEW & CONFIRM ═══════════════
+function showImportStatus(type, msg) {
+  const el = document.getElementById('importStatus');
+  const colors = {
+    reading:  { bg:'var(--blue-dim)',  border:'rgba(91,156,246,0.3)',  color:'var(--blue)'   },
+    loading:  { bg:'var(--purple-dim)',border:'rgba(167,139,250,0.3)', color:'var(--purple)' },
+    error:    { bg:'var(--red-dim)',   border:'rgba(242,107,91,0.3)',  color:'var(--red)'    },
+    success:  { bg:'var(--green-dim)', border:'rgba(62,207,142,0.3)',  color:'var(--green)'  },
+  };
+  const c = colors[type] || colors.reading;
+  el.style.display = 'block';
+  el.style.background = c.bg;
+  el.style.border = `1px solid ${c.border}`;
+  el.style.color = c.color;
+  el.textContent = msg;
+}
+
+function showPreview(rows) {
+  _pendingImport = rows;
+  document.getElementById('importStatus').style.display = 'none';
+
+  const acctOptions = `
+    <option value="brokerage">Brokerage</option>
+    <option value="roth">Roth IRA</option>
+    <option value="k401">401(k)</option>
+    <option value="watch">Watchlist</option>`;
+
+  document.getElementById('previewTable').innerHTML = `
+    <thead>
+      <tr style="background:var(--bg3)">
+        <th style="padding:8px 12px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--border)">Ticker</th>
+        <th style="padding:8px 12px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;text-align:right;border-bottom:1px solid var(--border)">Shares</th>
+        <th style="padding:8px 12px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;text-align:right;border-bottom:1px solid var(--border)">Price</th>
+        <th style="padding:8px 12px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;text-align:right;border-bottom:1px solid var(--border)">Cost basis</th>
+        <th style="padding:8px 12px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;text-align:right;border-bottom:1px solid var(--border)">Exp. return %</th>
+        <th style="padding:8px 12px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Account</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map((h,i) => `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 12px;font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--text)">${h.ticker}</td>
+          <td style="padding:8px 12px;font-family:var(--font-mono);font-size:12px;text-align:right;color:var(--text2)">${h.shares}</td>
+          <td style="padding:8px 12px;font-family:var(--font-mono);font-size:12px;text-align:right;color:var(--text2)">${h.price>0?'$'+h.price.toFixed(2):'—'}</td>
+          <td style="padding:8px 12px;font-family:var(--font-mono);font-size:12px;text-align:right;color:var(--text2)">${h.cb>0?'$'+h.cb.toFixed(2):'—'}</td>
+          <td style="padding:8px 12px;text-align:right">
+            <input type="number" value="${h.ret}" step="0.5" min="0"
+              style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text);font-family:var(--font-mono);font-size:12px;width:56px;outline:none;text-align:right"
+              oninput="_pendingImport[${i}].ret=parseFloat(this.value)||10" />
+          </td>
+          <td style="padding:8px 12px">
+            <select style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text);font-family:var(--font-body);font-size:12px;outline:none;cursor:pointer"
+              onchange="_pendingImport[${i}].account=this.value">
+              ${acctOptions}
+            </select>
+          </td>
+        </tr>`).join('')}
+    </tbody>`;
+
+  document.getElementById('importPreview').style.display = 'block';
+  showImportStatus('success', `Found ${rows.length} holding${rows.length!==1?'s':''} — review and assign accounts, then confirm.`);
+}
+
+function confirmImport() {
+  if (!_pendingImport.length) return;
+  // Merge: update existing tickers, append new ones
+  _pendingImport.forEach(incoming => {
+    const existing = HOLDINGS.find(h => h.ticker === incoming.ticker);
+    if (existing) {
+      existing.shares  = incoming.shares;
+      existing.price   = incoming.price || existing.price;
+      existing.cb      = incoming.cb    || existing.cb;
+      existing.ret     = incoming.ret;
+      existing.account = incoming.account;
+    } else {
+      HOLDINGS.push({ ...incoming, name: incoming.ticker });
+    }
+  });
+  _pendingImport = [];
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importStatus').style.display = 'none';
+  // Reset file inputs
+  document.getElementById('xlsxFileInput').value = '';
+  document.getElementById('imgFileInput').value  = '';
+  renderSettingsHoldings();
+  recalc();
+  showImportStatus('success', `✓ Imported successfully — ${HOLDINGS.filter(h=>h.shares>0).length} total positions.`);
+  setTimeout(() => { document.getElementById('importStatus').style.display='none'; }, 3000);
+}
+
+function cancelImport() {
+  _pendingImport = [];
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importStatus').style.display = 'none';
+  document.getElementById('xlsxFileInput').value = '';
+  document.getElementById('imgFileInput').value  = '';
+}
+
+// ═══════════════ NAV / TABS ═══════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t=>{if(t.textContent.toLowerCase().includes(id.slice(0,4))) t.classList.add('active');});
+  if(id==='projection') { drawProjChart(window._projRows||[],getNowNW()); }
+}
+
+function setScenario(s,el) {
+  document.querySelectorAll('.s-pill').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  scenarioMult=s==='bear'?0.7:s==='bull'?1.3:1.0;
+  recalc();
+}
+
+function switchProjTab(tab,el) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#page-projection .tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('ptab-'+tab).classList.add('active');
+  if(tab==='alloc') drawAllocChart(window._projRows||[]);
+  if(tab==='income') drawIncomeChart(window._projRows||[]);
+}
+
+// ═══════════════ INIT ═══════════════
+function init() {
+  const now = new Date();
+  document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  loadState();          // restore saved data first
+  renderSettingsHoldings();
+  recalc();             // recalc also calls saveState via the wrapped version
+}
+
+init();
+</script>
+
+<!--
+════════════════════════════════════════════════════════
+  🚀 DEPLOY AS A WEBSITE — GitHub Pages (free, 2 min)
+════════════════════════════════════════════════════════
+
+  1. Go to github.com → New repository → name it "fin-dashboard" (or anything)
+  2. Set visibility to Private (recommended — your financial data lives here)
+  3. Upload this file as "index.html"
+  4. Go to Settings → Pages → Source: "Deploy from branch" → branch: main → folder: / (root)
+  5. Hit Save. Your URL will be: https://YOUR-USERNAME.github.io/fin-dashboard/
+
+  All data is saved in your browser's localStorage — nothing is sent to any server.
+  To access from multiple devices, just open the URL on each device and re-enter your data once.
+  For true multi-device sync, consider Netlify + a free Supabase database (ask Claude to add that).
+════════════════════════════════════════════════════════
+-->
+</body>
+</html>
